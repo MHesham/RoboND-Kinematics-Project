@@ -17,6 +17,10 @@ from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from geometry_msgs.msg import Pose
 from mpmath import *
 from sympy import *
+from kr210_solver import *
+from time import time
+
+solver = create_kr210_solver()
 
 
 def handle_calculate_IK(req):
@@ -26,33 +30,18 @@ def handle_calculate_IK(req):
         return -1
     else:
 
-        ### Your FK code here
-        # Create symbols
-	#
-	#
-	# Create Modified DH parameters
-	#
-	#
-	# Define Modified DH Transformation matrix
-	#
-	#
-	# Create individual transformation matrices
-	#
-	#
-	# Extract rotation matrices from the transformation matrices
-	#
-	#
-        ###
-
         # Initialize service response
         joint_trajectory_list = []
+        ee_offset_list = []
+        solve_times_list = []
+        start_time = time()
         for x in xrange(0, len(req.poses)):
             # IK code starts here
             joint_trajectory_point = JointTrajectoryPoint()
 
-	    # Extract end-effector position and orientation from request
-	    # px,py,pz = end-effector position
-	    # roll, pitch, yaw = end-effector orientation
+            # Extract end-effector position and orientation from request
+            # px,py,pz = end-effector position
+            # roll, pitch, yaw = end-effector orientation
             px = req.poses[x].position.x
             py = req.poses[x].position.y
             pz = req.poses[x].position.z
@@ -61,21 +50,37 @@ def handle_calculate_IK(req):
                 [req.poses[x].orientation.x, req.poses[x].orientation.y,
                     req.poses[x].orientation.z, req.poses[x].orientation.w])
 
-            ### Your IK code here
-	    # Compensate for rotation discrepancy between DH parameters and Gazebo
-	    #
-	    #
-	    # Calculate joint angles using Geometric IK method
-	    #
-	    #
-            ###
+            solve_start_time = time()
+
+            theta1, theta2, theta3, theta4, theta5, theta6, WC_0 = solver.solve_IK(
+                px, py, pz, roll, pitch, yaw)
+
+            # Calcualte EE position offset error from FK by comparing against
+            # the requested position
+            fk_px, fk_py, fk_pz = solver.solve_FK(
+                theta1, theta2, theta3, theta4, theta5, theta6)
+
+            solve_times_list.append(time() - solve_start_time)
+
+            ee_x_e = abs(fk_px - px)
+            ee_y_e = abs(fk_py - py)
+            ee_z_e = abs(fk_pz - pz)
+            ee_offset = sqrt(ee_x_e**2 + ee_y_e**2 + ee_z_e**2)
 
             # Populate response for the IK request
             # In the next line replace theta1,theta2...,theta6 by your joint angle variables
-	    joint_trajectory_point.positions = [theta1, theta2, theta3, theta4, theta5, theta6]
-	    joint_trajectory_list.append(joint_trajectory_point)
+            joint_trajectory_point.positions = [
+                theta1, theta2, theta3, theta4, theta5, theta6]
+            joint_trajectory_list.append(joint_trajectory_point)
+            ee_offset_list.append(ee_offset)
 
-        rospy.loginfo("length of Joint Trajectory List: %s" % len(joint_trajectory_list))
+        rospy.loginfo("length of Joint Trajectory List: %s, total time: %04.4f",
+                      len(joint_trajectory_list), time() - start_time)
+        rospy.loginfo("Solve time avg %04.8fs min %04.8fs max %04.8fs", min(
+            solve_times_list), max(solve_times_list), sum(solve_times_list) / len(solve_times_list))
+        rospy.loginfo("EE offset: avg %04.8f min %04.8f max %04.8f units",
+                      min(ee_offset_list), max(ee_offset_list), sum(ee_offset_list) / len(ee_offset_list))
+
         return CalculateIKResponse(joint_trajectory_list)
 
 
@@ -85,6 +90,7 @@ def IK_server():
     s = rospy.Service('calculate_ik', CalculateIK, handle_calculate_IK)
     print "Ready to receive an IK request"
     rospy.spin()
+
 
 if __name__ == "__main__":
     IK_server()
