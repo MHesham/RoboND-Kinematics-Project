@@ -43,6 +43,8 @@ q1, q2, q3, q4, q5, q6, dG = symbols('q1:7,qG')
 d1, d2, d3, d4, d5, d6, qG = symbols('d1:7,dG')
 a0, a1, a2, a3, a4, a5, a6 = symbols('a0:7')
 alpha0, alpha1, alpha2, alpha3, alpha4, alpha5, alpha6 = symbols('alpha0:7')
+r, p, y = symbols('r p y')
+px, py, pz = symbols('px py pz')
 
 
 class Kr210Solver:
@@ -52,15 +54,14 @@ class Kr210Solver:
         self.T0_G = T0_G
         self.R0_3 = R0_3
 
-    def solve_IK(self, px, py, pz, roll, pitch, yaw):
+    def solve_IK(self, ee_x, ee_y, ee_z, roll, pitch, yaw):
         global q1, q2, q3
         global d1, d4, dG
         global a2, a3
 
-        EE_0 = Matrix([px, py, pz, 1.])
         Rrpy = rot_z(yaw) * rot_y(pitch) * rot_x(roll) * \
             self.R_corr  # x-y-z extrinsic rotation
-
+        EE_0 = Matrix([ee_x, ee_y, ee_z, 1.])
         n_0 = Rrpy[:, 2]
         WC_0 = EE_0 - dG * n_0
         WC_0 = WC_0.subs(self.DH_params)
@@ -113,6 +114,88 @@ class Kr210Solver:
         py = T0_G_eval[1, 3]
         pz = T0_G_eval[2, 3]
         return (px, py, pz)
+
+
+class Kr210SolverEx:
+    def __init__(self, DH_params, R_corr, T0_G, R0_3):
+        global px, py, pz, r, p, y
+
+        self.DH_params = DH_params
+        self.R_corr = R_corr
+        self.T0_G = T0_G
+        self.R0_3 = R0_3
+        self.Rrpy = rot_z(y) * rot_y(p) * rot_x(r) * \
+            self.R_corr  # x-y-z extrinsic rotation
+        self.EE_0 = Matrix([px, py, pz, 1.])
+        n_0 = self.Rrpy[:, 2]
+        self.WC_0 = self.EE_0 - dG * n_0
+        self.WC_0 = self.WC_0.subs(self.DH_params)
+        self.theta1 = atan2(self.WC_0[1], self.WC_0[0])
+        O2_x = a1 * cos(self.theta1)
+        O2_y = a1 * sin(self.theta1)
+        O2_z = d1
+        WC_2 = Matrix([self.WC_0[0] - O2_x, self.WC_0[1] -
+                       O2_y, self.WC_0[2] - O2_z])
+        WC_2 = WC_2.subs(self.DH_params)
+        A = sqrt(self.DH_params[d4] ** 2 + self.DH_params[a3] ** 2)
+        B = sqrt(WC_2[0] ** 2 + WC_2[1] ** 2 + WC_2[2] ** 2)
+        C = self.DH_params[a2]
+        phi1 = acos((B * B + C * C - A * A) / (2 * B * C))
+        phi2 = asin(WC_2[2] / B)
+        phi3 = acos((A * A + C * C - B * B) / (2 * A * C))
+        phi4 = acos(self.DH_params[d4] / A)
+
+        self.theta2 = pi / 2 - (phi1 + phi2)
+        self.theta3 = pi / 2 - (phi3 + phi4)
+
+        #R0_3_eval = self.R0_3.evalf(subs={q1: theta1_eval, q2: theta2_eval, q3: theta3_eval})
+        R3_6 = self.R0_3.T * self.Rrpy[0:3, 0:3]
+
+        # Entries of the rotation matrix
+        r21 = R3_6[1, 0]
+        r22 = R3_6[1, 1]
+        r23 = R3_6[1, 2]
+        r13 = R3_6[0, 2]
+        r33 = R3_6[2, 2]
+
+        # Euler angles from R3_6 using trig after generating R3_6 as follows:
+        # R3_6 = simplify(T3_4 * T4_5 * T5_6)
+
+        # alpha, rotation about z-axis
+        self.theta6 = atan2(-r22, r21)
+        # beta,  rotation about y-axis
+        self.theta5 = atan2(sqrt(r13**2 + r33**2), r23)
+        # gamma, rotation about x-axis
+        self.theta4 = atan2(r33, -r13)
+
+    def solve_IK(self, ee_x, ee_y, ee_z, roll, pitch, yaw):
+        global q1, q2, q3
+        global d1, d4, dG
+        global a2, a3
+
+        s = {px: ee_x, py: ee_y, pz: ee_z, r: roll, p: pitch, y: yaw}
+
+        theta1_eval = self.theta1.evalf(subs=s)
+        theta2_eval = self.theta2.evalf(subs=s)
+        theta3_eval = self.theta3.evalf(subs=s)
+
+        theta4_eval = self.theta4.subs(s).evalf(
+            subs={q1: theta1_eval, q2: theta2_eval, q3: theta3_eval})
+        theta5_eval = self.theta5.subs(s).evalf(
+            subs={q1: theta1_eval, q2: theta2_eval, q3: theta3_eval})
+        theta6_eval = self.theta6.subs(s).evalf(
+            subs={q1: theta1_eval, q2: theta2_eval, q3: theta3_eval})
+        WC_0_eval = self.WC_0.evalf(subs=s)
+
+        return (theta1_eval, theta2_eval, theta3_eval, theta4_eval, theta5_eval, theta6_eval, (WC_0_eval[0], WC_0_eval[1], WC_0_eval[2]))
+
+    def solve_FK(self, theta1, theta2, theta3, theta4, theta5, theta6):
+        T0_G_eval = self.T0_G.evalf(
+            subs={q1: theta1, q2: theta2, q3: theta3, q4: theta4, q5: theta5, q6: theta6})
+        ee_x = T0_G_eval[0, 3]
+        ee_y = T0_G_eval[1, 3]
+        ee_z = T0_G_eval[2, 3]
+        return (ee_x, ee_y, ee_z)
 
 
 def create_kr210_solver():
