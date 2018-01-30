@@ -48,11 +48,12 @@ px, py, pz = symbols('px py pz')
 
 
 class Kr210Solver:
-    def __init__(self, DH_params, R_corr, T0_G, R0_3):
+    def __init__(self, DH_params, R_corr, T0_G, R0_3, theta_limits):
         self.DH_params = DH_params
         self.R_corr = R_corr
         self.T0_G = T0_G
         self.R0_3 = R0_3
+        self.theta_limits = theta_limits
 
     def solve_IK(self, ee_x, ee_y, ee_z, roll, pitch, yaw):
         global q1, q2, q3
@@ -79,7 +80,7 @@ class Kr210Solver:
 
         phi1 = acos((B * B + C * C - A * A) / (2 * B * C))
         phi2 = asin(WC_2[2] / B)
-        phi3 = acos((A * A + C * C - B * B) / (2 * A * C))
+        phi3 = acos((A * A + C * C - B * B) / (2 ,* A * C))
         phi4 = acos(self.DH_params[d4] / A)
 
         theta2 = float(pi / 2 - (phi1 + phi2))
@@ -211,6 +212,13 @@ def create_kr210_solver():
                  alpha4:  pi / 2, a4:      0, d5:     0,
                  alpha5: -pi / 2, a5:      0, d6:     0,
                  alpha6:       0, a6:      0, dG: 0.303, qG: 0}
+
+    theta_limits = {q1: (radians(-185), radians(185)),
+                    q2: (radians(-45), radians(85)),
+                    q3: (radians(-210), radians(65)),
+                    q4: (radians(-350), radians(350)),
+                    q5: (radians(-125), radians(125)),
+                    q6: (radians(-350), radians(350))}
 
     T0_1 = T_i(alpha0, a0, q1, d1).subs(DH_params)
     T1_2 = T_i(alpha1, a1, q2, d2).subs(DH_params)
