@@ -101,7 +101,7 @@ Where:
 
 #### 2. Using the DH parameter table you derived earlier, create individual transformation matrices about each joint. In addition, also generate a generalized homogeneous transform between base_link and gripper_link using only end-effector(gripper) pose.
 
-I used the `jupyter notebook` to expirement with the transformation matrices derivation. My expirements and step-by-step derivation of the homogeneous transform can be found in the [Kinematics notebook](./Kinematics.ipnyb).
+I used the `jupyter notebook` to expirement with the transformation matrices derivation. My expirements and step-by-step derivation of the homogeneous transform can be found in the [Kinematics notebook](./Kinematics.ipynb).
 
 The transform `T(i-1,i)` is the transform of `frame i` called `O(i)` relative to `frame i-1` called `O(i-1)` and is used to transfrom a vector from `O(i)` space to `O(i-1)` space.
 
@@ -211,11 +211,10 @@ The summary of the solution to the inverse kinematics problem is as follows:
 
 
 ##### 1. Inverse Position Kinematics Problem
-|||
---|--|--
-*Description:*|Given the `gripper_link` pose, find out the wrist center `WC` position, and use that to compute the angle of the first 3 joints.
-*Input:*|EE position `(px, py, pz)`, and EE orientation `(roll, pitch, yaw)`
-*Output:*| Wrist Center `WC` position, and hence the `theta1`, `theta2`, and `theta3`
+*Description*|Given the `gripper_link` pose, find out the wrist center `WC` position, and use that to compute the angle of the first 3 joints.
+--|--
+*Input*|EE position `(px, py, pz)`, and EE orientation `(roll, pitch, yaw)`
+*Output*| Wrist Center `WC` position, and hence the `theta1`, `theta2`, and `theta3`
 
 *Solution*
 
@@ -248,11 +247,10 @@ Then we derive the formulas for the lenght of the 3 sides of our SSS triangle na
 ![][theta23_exp]
 
 ##### 2. Inverse Orientation Kinematics Problem
-|||
---|--|--
-*Description:*|Given the first three joint angles, find the final three joint angles corresponding to a given orientation `R(3,6)` with respect to frame `O(3)`.
-*Input:*|`theta1`, `theta2`, and `theta3`
-*Output:*|`theta4`, `theta5`, `theta6`
+*Description*|Given the first three joint angles, find the final three joint angles corresponding to a given orientation `R(3,6)` with respect to frame `O(3)`.
+--|--|
+*Input*|`theta1`, `theta2`, and `theta3`
+*Output*|`theta4`, `theta5`, `theta6`
 
 *Solution*
 
