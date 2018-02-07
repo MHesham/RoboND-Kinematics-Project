@@ -4,7 +4,7 @@ from sympy import *
 from time import time
 from mpmath import radians
 import tf
-from kr210_solver import *
+from kr210_solver import Kr210SolverFactory
 
 '''
 Format of test case is [ [[EE position],[EE orientation as quaternions]],[WC location],[joint angles]]
@@ -61,7 +61,7 @@ def test_code(test_case):
             self.poses = [comb]
 
     req = Pose(comb)
-    kr210_solver = create_kr210_solver()
+    kr210_solver = Kr210SolverFactory.create("Kr210Solver")
     start_time = time()
 
     ########################################################################################
@@ -76,7 +76,7 @@ def test_code(test_case):
         [req.poses[x].orientation.x, req.poses[x].orientation.y,
             req.poses[x].orientation.z, req.poses[x].orientation.w])
 
-    theta1, theta2, theta3, theta4, theta5, theta6, WC_0 = kr210_solver.solve_IK(
+    [theta1, theta2, theta3, theta4, theta5, theta6], WC_0 = kr210_solver.solve_IK(
         px, py, pz, roll, pitch, yaw)
 
     ##

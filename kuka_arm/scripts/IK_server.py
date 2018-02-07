@@ -17,7 +17,7 @@ from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from geometry_msgs.msg import Pose
 from mpmath import *
 from sympy import *
-from kr210_solver import *
+from kr210_solver import Kr210SolverFactory
 from time import time
 
 # Use KR210 solver factory method to instantiate a single IK solver to use
@@ -27,6 +27,7 @@ solver = Kr210SolverFactory.create("Kr210Solver")
 # If set to True, the output of the IK step will be used to compute FK and the
 # the error will be computed and logged to console, otherwise set to False.
 debug_IK = False
+
 
 def handle_calculate_IK(req):
     rospy.loginfo("Received %s eef-poses from the plan" % len(req.poses))
@@ -70,7 +71,7 @@ def handle_calculate_IK(req):
             # performance
             solve_times_list.append(time() - solve_start_time)
 
-            if debug_IK == True:            
+            if debug_IK == True:
                 # Compute error between FK and IK and append to list
                 ee_x_e = abs(fk_px - px)
                 ee_y_e = abs(fk_py - py)
@@ -86,12 +87,24 @@ def handle_calculate_IK(req):
 
         rospy.loginfo("length of Joint Trajectory List: %s, total time: %04.4f",
                       len(joint_trajectory_list), time() - start_time)
+
+        # Print generated trajectory
+        for i in xrange(0, len(joint_trajectory_list)):
+            t1 = joint_trajectory_list[i].positions[0]
+            t2 = joint_trajectory_list[i].positions[1]
+            t3 = joint_trajectory_list[i].positions[2]
+            t4 = joint_trajectory_list[i].positions[3]
+            t5 = joint_trajectory_list[i].positions[4]
+            t6 = joint_trajectory_list[i].positions[5]
+            rospy.loginfo("%04.8f %04.8f %04.8f %04.8f' %04.8f' %04.8f'", degrees(
+                t1), degrees(t2), degrees(t3), degrees(t4), degrees(t5), degrees(t6))
+
         rospy.loginfo("Solve time avg %04.8fs min %04.8fs max %04.8fs", min(
             solve_times_list), max(solve_times_list), sum(solve_times_list) / len(solve_times_list))
 
         if debug_IK == True:
             rospy.loginfo("EE offset: avg %04.8f min %04.8f max %04.8f units",
-                        min(ee_offset_list), max(ee_offset_list), sum(ee_offset_list) / len(ee_offset_list))
+                          min(ee_offset_list), max(ee_offset_list), sum(ee_offset_list) / len(ee_offset_list))
 
         return CalculateIKResponse(joint_trajectory_list)
 
